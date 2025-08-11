@@ -48,7 +48,7 @@ public class JweAuthenticationFilter extends OncePerRequestFilter {
         if (auth != null && auth.startsWith("Bearer ")) {
             String token = auth.substring(7);
             try {
-                var creds = jweUtil.decode(token);
+                var creds = jweUtil.decodeAndValidate(token);
                 dbCredentials.set(creds.user, creds.pass);
 
                 // Marca al request como autenticado (sin roles por ahora)
