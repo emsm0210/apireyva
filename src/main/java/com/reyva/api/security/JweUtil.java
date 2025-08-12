@@ -63,11 +63,26 @@ public class JweUtil {
         return jwe.serialize();
     }
 
-    public DecodedCreds decode(String token) throws ParseException, JOSEException {
+    @Value("${jwt.clockskew-sec:60}")
+    private long clockSkewSec;
+
+    // Reemplazar tu método decode por este:
+    public DecodedCreds decodeAndValidate(String token) throws ParseException, JOSEException {
         EncryptedJWT jwe = EncryptedJWT.parse(token);
         SecretKeySpec key = new SecretKeySpec(secret, "AES");
         jwe.decrypt(new DirectDecrypter(key));
+
         var c = jwe.getJWTClaimsSet();
+        var now = Instant.now();
+
+        if (c.getExpirationTime() == null
+                || now.isAfter(c.getExpirationTime().toInstant().plusSeconds(clockSkewSec))) {
+            throw new JOSEException("Token expirado");
+        }
+        if (c.getIssueTime() != null
+                && now.isBefore(c.getIssueTime().toInstant().minusSeconds(clockSkewSec))) {
+            throw new JOSEException("Token aún no válido");
+        }
         return new DecodedCreds(c.getSubject(), (String) c.getClaim("pwd"));
     }
 
