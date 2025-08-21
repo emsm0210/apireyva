@@ -13,6 +13,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.security.authentication.InsufficientAuthenticationException;
+import org.springframework.security.web.AuthenticationEntryPoint;
 
 import java.io.IOException;
 import java.text.ParseException;
@@ -26,10 +28,12 @@ public class JweAuthenticationFilter extends OncePerRequestFilter {
 
     private final JweUtil jweUtil;
     private final DbCredentials dbCredentials;
+    private final AuthenticationEntryPoint entryPoint;
 
-    public JweAuthenticationFilter(JweUtil jweUtil, DbCredentials dbCredentials) {
+    public JweAuthenticationFilter(JweUtil jweUtil, DbCredentials dbCredentials, AuthenticationEntryPoint entryPoint) {
         this.jweUtil = jweUtil;
         this.dbCredentials = dbCredentials;
+        this.entryPoint = entryPoint;
     }
 
     @Override
@@ -44,7 +48,7 @@ public class JweAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain chain) throws ServletException, IOException {
 
-        String auth = request.getHeader(HttpHeaders.AUTHORIZATION);
+        String auth = request.getHeader(org.springframework.http.HttpHeaders.AUTHORIZATION);
         if (auth != null && auth.startsWith("Bearer ")) {
             String token = auth.substring(7);
             try {
@@ -52,13 +56,13 @@ public class JweAuthenticationFilter extends OncePerRequestFilter {
                 dbCredentials.set(creds.user, creds.pass);
 
                 // Marca al request como autenticado (sin roles por ahora)
-                var authentication = new UsernamePasswordAuthenticationToken(
-                        creds.user, null, Collections.emptyList());
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        creds.user, null, java.util.Collections.emptyList());
+                org.springframework.security.core.context.SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            } catch (ParseException | JOSEException e) {
-                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("Token inválido o expirado");
+            } catch (JOSEException | ParseException e) {
+                entryPoint.commence(request, response,
+                        new InsufficientAuthenticationException("token inválido o expirado", e));
                 return;
             }
         }

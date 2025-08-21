@@ -11,11 +11,12 @@ package com.reyva.api.controller;
 import com.nimbusds.jose.JOSEException;
 import com.reyva.api.dto.AuthRequest;
 import com.reyva.api.dto.AuthResponse;
+import org.springframework.http.HttpStatus;
+import com.reyva.api.dto.ErrorResponse;
 import com.reyva.api.security.JweUtil;
 import com.reyva.api.service.OracleAuthService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 
 @RestController
 @RequestMapping("/auth")
@@ -33,7 +34,8 @@ public class AuthController {
     public ResponseEntity<?> login(@RequestBody AuthRequest req) {
         boolean ok = oracleAuthService.authenticate(req.getUsername(), req.getPassword());
         if (!ok) {
-            return ResponseEntity.status(401).body("Credenciales inválidas");
+            var body = ErrorResponse.of(HttpStatus.UNAUTHORIZED, "Credenciales inválidas", null, null, null);
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(body);
         }
 
         try {
